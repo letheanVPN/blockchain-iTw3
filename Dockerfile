@@ -41,26 +41,26 @@ RUN set -ex && \
     rm -rf /var/lib/apt
 COPY --from=builder /src/build/x86_64-linux-gnu/release/bin /usr/local/bin/
 
-# Create monero user
-RUN adduser --system --group --disabled-password monero && \
-	mkdir -p /wallet /home/monero/.bitmonero && \
-	chown -R monero:monero /home/monero/.bitmonero && \
-	chown -R monero:monero /wallet
+# Create lethean user
+RUN adduser --system --group --disabled-password lethean && \
+	mkdir -p /wallet /home/lethean/Lethean && \
+	chown -R lethean:lethean /home/lethean/Lethean && \
+	chown -R lethean:lethean /wallet
 
 # Contains the blockchain
-VOLUME /home/monero/.bitmonero
+VOLUME /home/lethean/Lethean
 
 # Generate your wallet via accessing the container and run:
 # cd /wallet
-# monero-wallet-cli
+# lethean-wallet-cli
 VOLUME /wallet
 
 EXPOSE 18080
 EXPOSE 18081
 
-# switch to user monero
-USER monero
+# switch to user lethean
+USER lethean
 
-ENTRYPOINT ["monerod"]
+ENTRYPOINT ["letheand"]
 CMD ["--p2p-bind-ip=0.0.0.0", "--p2p-bind-port=18080", "--rpc-bind-ip=0.0.0.0", "--rpc-bind-port=18081", "--non-interactive", "--confirm-external-bind"]
 

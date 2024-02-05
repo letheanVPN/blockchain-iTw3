@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (c) 2018-2022, The Monero Project
+# Copyright (c) 2018-2023, The Monero Project
 
 # 
 # All rights reserved.
@@ -36,7 +36,6 @@ import math
 import monotonic
 import util_resources
 import multiprocessing
-import string
 
 """Test daemon mining RPC calls
 
@@ -52,11 +51,6 @@ Control the behavior with these environment variables:
 
 from framework.daemon import Daemon
 from framework.wallet import Wallet
-
-def assert_non_null_hash(s):
-    assert len(s) == 64 # correct length
-    assert all((c in string.hexdigits for c in s)) # is parseable as hex
-    assert s != ('0' * 64) # isn't null hash
 
 class MiningTest():
     def run_test(self):
@@ -227,7 +221,7 @@ class MiningTest():
         available_ram = util_resources.available_ram_gb()
         threshold_ram = 3
         self.print_mining_info("Available RAM = " + str(round(available_ram, 1)) + " GB")
-        if available_ram < threshold_ram:
+        if available_ram < threshold_ram and not self.is_mining_silent():
             print("Warning! Available RAM =", round(available_ram, 1), 
                   "GB is less than the reasonable threshold =", threshold_ram,
                   ". The RX init might exceed the calculated timeout.")
@@ -256,14 +250,12 @@ class MiningTest():
             block_hash = hashes[i]
             assert len(block_hash) == 64
             res = daemon.submitblock(blocks[i])
-            submitted_block_id = res.block_id
-            assert_non_null_hash(submitted_block_id)
             res = daemon.get_height()
             assert res.height == height + i + 1
             assert res.hash == block_hash
 
     def is_mining_silent(self):
-        return 'MINING_SILENT' in os.environ
+        return 'MINING_SILENT' in os.environ and os.environ['MINING_SILENT'] != "0"
 
     def print_mining_info(self, msg):
         if self.is_mining_silent():
@@ -354,8 +346,6 @@ class MiningTest():
         t0 = time.time()
         for h in range(len(block_hashes)):
             res = daemon.submitblock(blocks[h])
-            submitted_block_id = res.block_id
-            assert_non_null_hash(submitted_block_id)
         t0 = time.time() - t0
         res = daemon.get_info()
         assert height == res.height

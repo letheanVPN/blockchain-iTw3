@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2022, The Monero Project
+// Copyright (c) 2014-2023, The Monero Project
 // 
 // All rights reserved.
 // 
@@ -68,7 +68,7 @@ using namespace epee;
     if (m_wallet->multisig() && !m_wallet->is_multisig_enabled()) \
     { \
       er.code = WALLET_RPC_ERROR_CODE_DISABLED; \
-      er.message = "This wallet is multisig, and multisig is disabled. Multisig is an experimental feature and may have bugs. Things that could go wrong include: funds sent to a multisig wallet can't be spent at all, can only be spent with the participation of a malicious group member, or can be stolen by a malicious group member. You can enable it by running this once in monero-wallet-cli: set enable-multisig-experimental 1"; \
+      er.message = "This wallet is multisig, and multisig is disabled. Multisig is an experimental feature and may have bugs. Things that could go wrong include: funds sent to a multisig wallet can't be spent at all, can only be spent with the participation of a malicious group member, or can be stolen by a malicious group member. You can enable it by running this once in lethean-wallet-cli: set enable-multisig-experimental 1"; \
       return false; \
     } \
   } while(0)
@@ -244,7 +244,7 @@ namespace tools
           string_encoding::base64_encode(rand_128bit.data(), rand_128bit.size())
         );
 
-        std::string temp = "monero-wallet-rpc." + bind_port + ".login";
+        std::string temp = "lethean-wallet-rpc." + bind_port + ".login";
         rpc_login_file = tools::private_file::create(temp);
         if (!rpc_login_file.handle())
         {
@@ -295,7 +295,7 @@ namespace tools
     tools::wallet2::BackgroundMiningSetupType setup = m_wallet->setup_background_mining();
     if (setup == tools::wallet2::BackgroundMiningNo)
     {
-      MLOG_RED(el::Level::Warning, "Background mining not enabled. Run \"set setup-background-mining 1\" in monero-wallet-cli to change.");
+      MLOG_RED(el::Level::Warning, "Background mining not enabled. Run \"set setup-background-mining 1\" in lethean-wallet-cli to change.");
       return;
     }
 
@@ -321,7 +321,7 @@ namespace tools
       MINFO("The daemon is not set up to background mine.");
       MINFO("With background mining enabled, the daemon will mine when idle and not on battery.");
       MINFO("Enabling this supports the network you are using, and makes you eligible for receiving new monero");
-      MINFO("Set setup-background-mining to 1 in monero-wallet-cli to change.");
+      MINFO("Set setup-background-mining to 1 in lethean-wallet-cli to change.");
       return;
     }
 
@@ -403,7 +403,6 @@ namespace tools
   {
     bool is_failed = pd.m_state == tools::wallet2::unconfirmed_transfer_details::failed;
     entry.txid = string_tools::pod_to_hex(txid);
-    entry.payment_id = string_tools::pod_to_hex(pd.m_payment_id);
     entry.payment_id = string_tools::pod_to_hex(pd.m_payment_id);
     if (entry.payment_id.substr(16).find_first_not_of('0') == std::string::npos)
       entry.payment_id = entry.payment_id.substr(0,16);
@@ -584,9 +583,9 @@ namespace tools
     if (!m_wallet) return not_open(er);
     try
     {
-      if (req.count < 1 || req.count > 64) {
+      if (req.count < 1 || req.count > 65536) {
         er.code = WALLET_RPC_ERROR_CODE_UNKNOWN_ERROR;
-        er.message = "Count must be between 1 and 64.";
+        er.message = "Count must be between 1 and 65536.";
         return false;
       }
 
@@ -3265,7 +3264,7 @@ namespace tools
     if (!m_wallet) return not_open(er);
     cryptonote::COMMAND_RPC_STOP_MINING::request daemon_req;
     cryptonote::COMMAND_RPC_STOP_MINING::response daemon_res;
-    bool r = m_wallet->invoke_http_json("/stop_mining", daemon_req, daemon_res);
+    bool r = m_wallet->invoke_http_json("/stop_mining", daemon_req, daemon_res, std::chrono::seconds(60)); // this waits till stopped, and if randomx has just started initializing its dataset, it might be a while
     if (!r || daemon_res.status != CORE_RPC_STATUS_OK)
     {
       er.code = WALLET_RPC_ERROR_CODE_UNKNOWN_ERROR;
@@ -3541,7 +3540,6 @@ namespace tools
         cryptonote::print_money(e.tx_amount() + e.fee())  %
         cryptonote::print_money(e.tx_amount()) %
         cryptonote::print_money(e.fee())).str();
-      er.message = e.what();
     }
     catch (const tools::error::not_enough_outs_to_mix& e)
     {
@@ -3813,7 +3811,7 @@ namespace tools
     std::string old_language;
 
     // check the given seed
-    if (!req.enable_multisig_experimental) {
+    {
       if (!crypto::ElectrumWords::words_to_bytes(req.seed, recovery_key, old_language))
       {
         er.code = WALLET_RPC_ERROR_CODE_UNKNOWN_ERROR;
@@ -3836,13 +3834,6 @@ namespace tools
 
     // process seed_offset if given
     {
-      if (req.enable_multisig_experimental && !req.seed_offset.empty())
-      {
-        er.code = WALLET_RPC_ERROR_CODE_UNKNOWN_ERROR;
-        er.message = "Multisig seeds are not compatible with seed offsets";
-        return false;
-      }
-
       if (!req.seed_offset.empty())
       {
         recovery_key = cryptonote::decrypt_key(recovery_key, req.seed_offset);
@@ -3906,27 +3897,7 @@ namespace tools
     crypto::secret_key recovery_val;
     try
     {
-      if (req.enable_multisig_experimental)
-      {
-        // Parse multisig seed into raw multisig data
-        epee::wipeable_string multisig_data;
-        multisig_data.resize(req.seed.size() / 2);
-        if (!epee::from_hex::to_buffer(epee::to_mut_byte_span(multisig_data), req.seed))
-        {
-          er.code = WALLET_RPC_ERROR_CODE_UNKNOWN_ERROR;
-          er.message = "Multisig seed not represented as hexadecimal string";
-          return false;
-        }
-
-        // Generate multisig wallet
-        wal->generate(wallet_file, std::move(rc.second).password(), multisig_data, false);
-        wal->enable_multisig(true);
-      }
-      else
-      {
-        // Generate normal wallet
-        recovery_val = wal->generate(wallet_file, std::move(rc.second).password(), recovery_key, true, false, false);
-      }
+      recovery_val = wal->generate(wallet_file, std::move(rc.second).password(), recovery_key, true, false, false);
       MINFO("Wallet has been restored.\n");
     }
     catch (const std::exception &e)
@@ -3937,7 +3908,7 @@ namespace tools
 
     // // Convert the secret key back to seed
     epee::wipeable_string electrum_words;
-    if (!req.enable_multisig_experimental && !crypto::ElectrumWords::bytes_to_words(recovery_val, electrum_words, mnemonic_language))
+    if (!crypto::ElectrumWords::bytes_to_words(recovery_val, electrum_words, mnemonic_language))
     {
       er.code = WALLET_RPC_ERROR_CODE_UNKNOWN_ERROR;
       er.message = "Failed to encode seed";
@@ -4550,7 +4521,6 @@ public:
 
       const auto arg_wallet_file = wallet_args::arg_wallet_file();
       const auto arg_from_json = wallet_args::arg_generate_from_json();
-      const auto arg_rpc_client_secret_key = wallet_args::arg_rpc_client_secret_key();
       const auto arg_password_file = wallet_args::arg_password_file();
 
       const auto wallet_file = command_line::get_arg(vm, arg_wallet_file);
@@ -4606,17 +4576,6 @@ public:
       if (!wal)
       {
         return false;
-      }
-
-      if (!command_line::is_arg_defaulted(vm, arg_rpc_client_secret_key))
-      {
-        crypto::secret_key client_secret_key;
-        if (!epee::string_tools::hex_to_pod(command_line::get_arg(vm, arg_rpc_client_secret_key), client_secret_key))
-        {
-          MERROR(arg_rpc_client_secret_key.name << ": RPC client secret key should be 32 byte in hex format");
-          return false;
-        }
-        wal->set_rpc_client_secret_key(client_secret_key);
       }
 
       bool quit = false;
@@ -4725,7 +4684,6 @@ int main(int argc, char** argv) {
 
   const auto arg_wallet_file = wallet_args::arg_wallet_file();
   const auto arg_from_json = wallet_args::arg_generate_from_json();
-  const auto arg_rpc_client_secret_key = wallet_args::arg_rpc_client_secret_key();
 
   po::options_description hidden_options("Hidden");
 
@@ -4739,8 +4697,8 @@ int main(int argc, char** argv) {
   command_line::add_arg(desc_params, arg_from_json);
   command_line::add_arg(desc_params, arg_wallet_dir);
   command_line::add_arg(desc_params, arg_prompt_for_password);
-  command_line::add_arg(desc_params, arg_rpc_client_secret_key);
   command_line::add_arg(desc_params, arg_no_initial_sync);
+  command_line::add_arg(hidden_options, daemonizer::arg_non_interactive);
 
   daemonizer::init_options(hidden_options, desc_params);
   desc_params.add(hidden_options);
@@ -4749,12 +4707,12 @@ int main(int argc, char** argv) {
   bool should_terminate = false;
   std::tie(vm, should_terminate) = wallet_args::main(
     argc, argv,
-    "monero-wallet-rpc [--wallet-file=<file>|--generate-from-json=<file>|--wallet-dir=<directory>] [--rpc-bind-port=<port>]",
+    "lethean-wallet-rpc [--wallet-file=<file>|--generate-from-json=<file>|--wallet-dir=<directory>] [--rpc-bind-port=<port>]",
     tools::wallet_rpc_server::tr("This is the RPC monero wallet. It needs to connect to a monero\ndaemon to work correctly."),
     desc_params,
     po::positional_options_description(),
     [](const std::string &s, bool emphasis){ tools::scoped_message_writer(emphasis ? epee::console_color_white : epee::console_color_default, true) << s; },
-    "monero-wallet-rpc.log",
+    "lethean-wallet-rpc.log",
     true
   );
   if (!vm)

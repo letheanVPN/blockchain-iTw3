@@ -2,6 +2,9 @@ name: ci/gh-actions/cli
 
 on:
   push:
+    paths-ignore:
+      - 'docs/**'
+      - '**/README.md'
   pull_request:
     paths-ignore:
       - 'docs/**'
@@ -174,11 +177,11 @@ jobs:
     - name: archive
       run: |
         pip install git-archive-all
-        export VERSION="monero-$(git describe)"
+        export VERSION="lethean-$(git describe)"
         export OUTPUT="$VERSION.tar"
         echo "OUTPUT=$OUTPUT" >> $GITHUB_ENV
         /home/runner/.local/bin/git-archive-all --prefix "$VERSION/" --force-submodules "$OUTPUT"
     - uses: actions/upload-artifact@v3
       with:
         name: ${{ env.OUTPUT }}
-        path: /home/runner/work/monero/monero/${{ env.OUTPUT }}
+        path: ${{ github.workspace }}/${{ env.OUTPUT }}

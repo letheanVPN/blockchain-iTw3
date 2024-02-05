@@ -1,4 +1,4 @@
-# Copyright (c) 2014-2022, The Monero Project
+# Copyright (c) 2014-2023, The Monero Project
 # 
 # All rights reserved.
 # 
@@ -72,8 +72,14 @@ else ()
   include_directories(SYSTEM "${CMAKE_CURRENT_SOURCE_DIR}/gtest/include")
 endif (GTest_FOUND)
 
-message(STATUS "Copying test data directory...")
-file(COPY data DESTINATION .) # Copy data directory from source root to build root
+file(COPY
+  data/wallet_9svHk1.keys
+  data/wallet_9svHk1
+  data/outputs
+  data/unsigned_monero_tx
+  data/signed_monero_tx
+  data/sha256sum
+  DESTINATION data)
 
 if (CMAKE_BUILD_TYPE STREQUAL "fuzz" OR OSSFUZZ)
   add_subdirectory(fuzz)
@@ -98,8 +104,6 @@ endif()
 if (TREZOR_DEBUG)
   add_subdirectory(trezor)
 endif()
-
-# add_subdirectory(daemon_tests)
 
 set(hash_targets_sources
   hash-target.cpp)
@@ -149,10 +153,10 @@ foreach(BENCH IN LISTS MONERO_WALLET_CRYPTO_BENCH)
 endforeach ()
 
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/benchmark.h.in" "${MONERO_GENERATED_HEADERS_DIR}/tests/benchmark.h")
-monero_add_minimal_executable(monero-wallet-crypto-bench benchmark.cpp ${BENCH_OBJECTS})
-target_link_libraries(monero-wallet-crypto-bench cncrypto)
+monero_add_minimal_executable(lethean-wallet-crypto-bench benchmark.cpp ${BENCH_OBJECTS})
+target_link_libraries(lethean-wallet-crypto-bench cncrypto)
 
-add_test(NAME wallet-crypto-bench COMMAND monero-wallet-crypto-bench)
+add_test(NAME wallet-crypto-bench COMMAND lethean-wallet-crypto-bench)
 
 
 set(enabled_tests

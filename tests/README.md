@@ -43,10 +43,6 @@ ctest
 
 To run the same tests on a release build, replace `debug` with `release`.
 
-# Daemon tests
-
-[TODO]
-
 # Functional tests
 
 [TODO]
@@ -68,7 +64,7 @@ Next, restore a mainnet wallet with the following seed and restore height 0 (the
 velvet lymph giddy number token physics poetry unquoted nibs useful sabotage limits benches lifestyle eden nitrogen anvil fewest avoid batch vials washing fences goat unquoted
 ```
 
-Open the wallet file with `monero-wallet-rpc` with RPC port 18083. Finally, start tests by invoking ./blockchain.py or ./speed.py
+Open the wallet file with `lethean-wallet-rpc` with RPC port 18083. Finally, start tests by invoking ./blockchain.py or ./speed.py
 
 ## Parameters
 
@@ -107,6 +103,12 @@ ctest
 ```
 
 To run the same tests on a release build, replace `debug` with `release`.
+
+To run specific hash test, you can use `ctest` `-R` parameter. For exmaple to run only `blake2b` hash tests:
+
+```
+ctest -R hash-blake2b
+```
 
 # Libwallet API tests
 
@@ -155,3 +157,4 @@ When writing new tests, please implement all functions in `.cpp` or `.c` files, 
 ## Writing fuzz tests
 
 [TODO]
+hash

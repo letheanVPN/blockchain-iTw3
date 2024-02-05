@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2022, The Monero Project
+// Copyright (c) 2014-2023, The Monero Project
 // 
 // All rights reserved.
 // 
@@ -352,6 +352,7 @@ namespace cryptonote
     const auto ssl_base_path = (boost::filesystem::path{data_dir} / "rpc_ssl").string();
     const bool ssl_cert_file_exists = boost::filesystem::exists(ssl_base_path + ".crt");
     const bool ssl_pkey_file_exists = boost::filesystem::exists(ssl_base_path + ".key");
+    const bool ssl_fp_file_exists = boost::filesystem::exists(ssl_base_path + ".fingerprint");
     if (store_ssl_key)
     {
       // .key files are often given different read permissions as their corresponding .crt files.
@@ -361,13 +362,39 @@ namespace cryptonote
         MFATAL("Certificate (.crt) and private key (.key) files must both exist or both not exist at path: " << ssl_base_path);
         return false;
       }
+      else if (!ssl_cert_file_exists && ssl_fp_file_exists) // only fingerprint file is present
+      {
+        MFATAL("Fingerprint file is present while certificate (.crt) and private key (.key) files are not at path: " << ssl_base_path);
+        return false;
+      }
       else if (ssl_cert_file_exists) { // and ssl_pkey_file_exists
         // load key from previous run, password prompted by OpenSSL
         store_ssl_key = false;
         rpc_config->ssl_options.auth =
           epee::net_utils::ssl_authentication_t{ssl_base_path + ".key", ssl_base_path + ".crt"};
+
+        // Since the .fingerprint file was added afterwards, sometimes the other 2 are present, and .fingerprint isn't
+        // In that case, generate the .fingerprint file from the existing .crt file
+        if (!ssl_fp_file_exists)
+        {
+          try
+          {
+            std::string fingerprint = epee::net_utils::get_hr_ssl_fingerprint_from_file(ssl_base_path + ".crt");
+            if (!epee::file_io_utils::save_string_to_file(ssl_base_path + ".fingerprint", fingerprint))
+            {
+              MWARNING("Could not save SSL fingerprint to file '" << ssl_base_path << ".fingerprint'");
+            }
+            const auto fp_perms = boost::filesystem::owner_read | boost::filesystem::group_read | boost::filesystem::others_read;
+            boost::filesystem::permissions(ssl_base_path + ".fingerprint", fp_perms);
+          }
+          catch (const std::exception& e)
+          {
+            // Do nothing. The fingerprint file is helpful, but not at all necessary.
+            MWARNING("While trying to store SSL fingerprint file, got error (ignoring): " << e.what());
+          }
+        }
       }
-    }
+    } // if (store_ssl_key)
 
     auto rng = [](size_t len, uint8_t *ptr){ return crypto::rand(len, ptr); };
     const bool inited = epee::http_server_impl_base<core_rpc_server, connection_context>::init(
@@ -1072,7 +1099,17 @@ namespace cryptonote
       CHECK_AND_ASSERT_MES(tx_hash == std::get<0>(tx), false, "mismatched tx hash");
       e.tx_hash = *txhi++;
       e.prunable_hash = epee::string_tools::pod_to_hex(std::get<2>(tx));
-      if (req.split || req.prune || std::get<3>(tx).empty())
+
+      // coinbase txes do not have signatures to prune, so they appear to be pruned if looking just at prunable data being empty
+      bool pruned = std::get<3>(tx).empty();
+      if (pruned)
+      {
+        cryptonote::transaction t;
+        if (cryptonote::parse_and_validate_tx_base_from_blob(std::get<1>(tx), t) && is_coinbase(t))
+          pruned = false;
+      }
+
+      if (req.split || req.prune || pruned)
       {
         // use splitted form with pruned and prunable (filled only when prune=false and the daemon has it), leaving as_hex as empty
         e.pruned_as_hex = string_tools::buff_to_hex_nodelimer(std::get<1>(tx));
@@ -1303,6 +1340,7 @@ namespace cryptonote
     {
       LOG_PRINT_L0("[on_send_raw_tx]: Failed to parse tx from hexbuff: " << req.tx_as_hex);
       res.status = "Failed";
+      res.reason = "Hex decoding failed";
       return true;
     }
 
@@ -2178,8 +2216,7 @@ namespace cryptonote
     // Fixing of high orphan issue for most pools
     // Thanks Boolberry!
     block b;
-    crypto::hash blk_id;
-    if(!parse_and_validate_block_from_blob(blockblob, b, blk_id))
+    if(!parse_and_validate_block_from_blob(blockblob, b))
     {
       error_resp.code = CORE_RPC_ERROR_CODE_WRONG_BLOCKBLOB;
       error_resp.message = "Wrong block blob";
@@ -2202,7 +2239,6 @@ namespace cryptonote
       error_resp.message = "Block not accepted";
       return false;
     }
-    res.block_id = epee::string_tools::pod_to_hex(blk_id);
     res.status = CORE_RPC_STATUS_OK;
     return true;
   }

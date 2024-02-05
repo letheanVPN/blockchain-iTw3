@@ -2,6 +2,9 @@ name: ci/gh-actions/depends
 
 on:
   push:
+    paths-ignore:
+      - 'docs/**'
+      - '**/README.md'
   pull_request:
     paths-ignore:
       - 'docs/**'
@@ -55,6 +58,9 @@ jobs:
           - name: "x86_64 Freebsd"
             host: "x86_64-unknown-freebsd"
             packages: "clang-8 gperf cmake python3-zmq libdbus-1-dev libharfbuzz-dev"
+          - name: "ARMv8 Android"
+            host: "aarch64-linux-android"
+            packages: "gperf cmake python3"
     name: ${{ matrix.toolchain.name }}
     steps:
     - uses: actions/checkout@v3
@@ -98,9 +104,8 @@ jobs:
         ${{env.CCACHE_SETTINGS}}
         make depends target=${{ matrix.toolchain.host }} -j2
     - uses: actions/upload-artifact@v3
-      if: ${{ matrix.toolchain.host == 'x86_64-w64-mingw32' || matrix.toolchain.host == 'x86_64-apple-darwin11' || matrix.toolchain.host == 'x86_64-unknown-linux-gnu' }}
       with:
-        name: ${{ matrix.toolchain.name }}
+        name: ${{ matrix.toolchain.host }}
         path: |
-          /home/runner/work/monero/monero/build/${{ matrix.toolchain.host }}/release/bin/monero-wallet-cli*
-          /home/runner/work/monero/monero/build/${{ matrix.toolchain.host }}/release/bin/monerod*
+          ${{ github.workspace }}/build/${{ matrix.toolchain.host }}/release/bin/lethean-wallet-cli*
+          ${{ github.workspace }}/build/${{ matrix.toolchain.host }}/release/bin/letheand*

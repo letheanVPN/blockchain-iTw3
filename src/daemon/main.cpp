@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2022, The Monero Project
+// Copyright (c) 2014-2023, The Monero Project
 //
 // All rights reserved.
 //
@@ -83,7 +83,7 @@ uint16_t parse_public_rpc_port(const po::variables_map &vm)
   }
 
   uint16_t rpc_port;
-  if (!string_tools::get_xtype_from_string(rpc_port, rpc_port_str))
+  if (!epee::string_tools::get_xtype_from_string(rpc_port, rpc_port_str))
   {
     throw std::runtime_error("invalid RPC port " + rpc_port_str);
   }
@@ -143,7 +143,6 @@ int main(int argc, char const * argv[])
 
       command_line::add_arg(visible_options, command_line::arg_help);
       command_line::add_arg(visible_options, command_line::arg_version);
-      command_line::add_arg(visible_options, daemon_args::arg_os_version);
       command_line::add_arg(visible_options, daemon_args::arg_config_file);
 
       // Settings
@@ -159,6 +158,7 @@ int main(int argc, char const * argv[])
       command_line::add_arg(core_settings, daemon_args::arg_zmq_rpc_bind_port);
       command_line::add_arg(core_settings, daemon_args::arg_zmq_pub);
       command_line::add_arg(core_settings, daemon_args::arg_zmq_rpc_disabled);
+      command_line::add_arg(core_settings, daemonizer::arg_non_interactive);
 
       daemonizer::init_options(hidden_options, visible_options);
       daemonize::t_executor::init_options(core_settings);
@@ -200,13 +200,6 @@ int main(int argc, char const * argv[])
     if (command_line::get_arg(vm, command_line::arg_version))
     {
       std::cout << "Monero '" << MONERO_RELEASE_NAME << "' (v" << MONERO_VERSION_FULL << ")" << ENDL;
-      return 0;
-    }
-
-    // OS
-    if (command_line::get_arg(vm, daemon_args::arg_os_version))
-    {
-      std::cout << "OS: " << tools::get_os_version_string() << ENDL;
       return 0;
     }
 

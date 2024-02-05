@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2022, The Monero Project
+// Copyright (c) 2014-2023, The Monero Project
 //
 // All rights reserved.
 //
@@ -40,7 +40,6 @@
 #include "blockchain.h"
 #include "blockchain_db/locked_txn.h"
 #include "blockchain_db/blockchain_db.h"
-#include "common/boost_serialization_helper.h"
 #include "int-util.h"
 #include "misc_language.h"
 #include "warnings.h"
