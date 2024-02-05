@@ -107,5 +107,4 @@ jobs:
       with:
         name: ${{ matrix.toolchain.host }}
         path: |
-          ${{ github.workspace }}/build/${{ matrix.toolchain.host }}/release/bin/lethean-wallet-cli*
-          ${{ github.workspace }}/build/${{ matrix.toolchain.host }}/release/bin/letheand*
+          ${{ github.workspace }}/build/${{ matrix.toolchain.host }}/release/bin/lethean*
