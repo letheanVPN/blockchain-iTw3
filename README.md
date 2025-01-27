@@ -1,7 +1,7 @@
 # Lethean (LTHN) - Monero Fork
 
 Copyright (c) 2017-2024, Lethean Project
-Copyright (c) 2014-2023, The Monero Project
+Copyright (c) 2014-2025, The Monero Project
 Portions Copyright (c) 2012-2013 The Cryptonote developers.
 
 ## Table of Contents
